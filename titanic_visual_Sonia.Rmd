@@ -1,0 +1,239 @@
+---
+title: "Titanic Visualization_Sonia"
+output:
+  word_document: default
+  html_notebook: default
+---
+#BIS581
+#Visualization homework
+Load some data
+```{r}
+titanic <- read.csv("titanic.csv",header=TRUE)
+```
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(plyr)
+```
+
+
+
+**Perform any work you need transform,fix,wrangle your data**
+
+```{r}
+summary(titanic)
+```
+```{r}
+str(titanic)
+```
+
+```{r}
+head(titanic)
+```
+
+```{r}
+## Converting the variables to factors
+
+titanic$Survived = factor(titanic$Survived)
+titanic$PClass=factor(titanic$PClass)
+```
+
+```{r}
+str(titanic)
+```
+
+```{r}
+## Changing the dummy variable (survival) to Survived or Not Survived
+
+titanic$Survived <-revalue(titanic$Survived, c("1"="Survived", "0"="Not Survived"))
+```
+
+
+```{r}
+table(titanic$Survived)
+```
+```{r}
+## Creating new variable 'Title' by using the title of the passengers
+
+titanic$Title <- sapply(titanic$Name,FUN=function(x){regmatches(x,regexec(',[[:space:]](.*?)[[:space:]]',x))[[1]][2]})
+
+```
+
+```{r}
+## Converting the 'Title' variable to factor
+
+titanic$Title=factor(titanic$Title)
+```
+
+```{r}
+str(titanic)
+```
+
+
+```{r}
+titanic %>% pull(Title) %>% levels() 
+```
+```{r}
+## Trying to create a variable 'Gender' to show the relationship between survival and gender
+
+titanic <- within(titanic, {
+  Gender = "male"
+  Gender[Title %in% c("Albert", "Captain","Col", "Colonel","Dr","Eino",
+                              "Ernst","Jonkheer","Major","Master","Mr","Nikolai",
+                              "Nils","Oscar","Rev","Richard", "Simon","Sir",
+                              "Thomas","W","William")] = "Male"
+  Gender[Title %in% c("Hilda","Jenny", "Lady","Madame", "Miss","Mlle", "Mrs","Ms", "Ms ", "the")] = "Female"
+})
+```
+
+
+
+```{r}
+summary(titanic)
+```
+**There are 12 missing values in Title. That means 12 passengers of total 1313 passengers have not been assigned titles.**
+
+```{r}
+## Converting the 'Gender' variable to factor
+
+titanic$Gender = factor(titanic$Gender)
+```
+
+
+```{r}
+## Trying to Omit NA's from data set
+
+titanic_1 <- na.omit (titanic)
+```
+```{r}
+## Trying to check PClass
+
+titanic_1 %>% pull(PClass)  %>% as.factor() %>% levels()
+```
+
+```{r}
+## Dropping the class "*" from PClass
+
+titanic_1$PClass<-factor(titanic_1$PClass, levels=c("1st", "2nd", "3rd"))
+```
+
+```{r}
+titanic_1 %>% pull(PClass)  %>% as.factor() %>% levels()
+```
+
+```{r}
+summary(titanic_1)
+```
+```{r}
+table(titanic_1$Gender)
+```
+**Now we have all variables to answer the following questions.** 
+
+```{r} 
+library(ggplot2)
+```
+
+**Using ggplot2, create appropriate plots to answer the following questions:**
+
+
+**1. Is there a relationship between survival and gender?**
+
+
+```{r}
+ggplot(titanic_1, aes(x = Survived, fill=Gender)) +geom_bar(position = position_dodge()) +geom_text(stat='count', aes(label=stat(count)), position = position_dodge(width=1), vjust=-0.2)+theme_classic()+labs(title="Bar chart of survival by gender")
+```
+```{r}
+## in percentage terms
+
+titanic_12 <- titanic_1 %>% group_by(Survived, Gender) %>% dplyr::summarize(count = n()) %>%mutate(Percent=count/sum(count))
+
+ggplot(titanic_12, aes(x= Survived, y=Percent*100, fill = Gender)) +geom_bar(stat="identity") + labs(title="Bar chart of survival by gender", y="Percent")
+```
+
+We created two graphs for showing the relationship between survival and gender. The first one is based on count and the second one is based on percentage. From the above graphs, we can infer that females are more likely to survive than males.But there are some titles i.e 'Captain', 'Master', 'Colonel','Major','Dr' that are gender neutral. We assumed these gender neutral title as Male. If we assume these title as female, then results may be slightly different. This shows that there is a relationship between survival and gender. 
+
+
+
+**2. Is there a relationship between survival and class?**
+
+
+
+```{r}
+ggplot(titanic_1, aes(x = Survived, fill=PClass)) +geom_bar(position = position_dodge()) +geom_text(stat='count', aes(label=stat(count)), position = position_dodge(width=1), vjust=-0.2)+theme_classic()+labs(title="Bar chart of survival by PClass")
+```
+```{r}
+## in percentage terms
+
+titanic_13 <- titanic_1 %>% group_by(Survived, PClass) %>% dplyr::summarize(count = n()) %>%mutate(Percent=count/sum(count))
+
+ggplot(titanic_13, aes(x= Survived, y=Percent*100, fill = PClass)) +geom_bar(stat="identity") + labs(title="Bar chart of survival by PClass", y="Percent")
+
+```
+
+
+From the two figures above, we can infer that the number of surviving passengers in the first class was higher and the number of non-surviving passengers in the third class was higher. This shows that there is a relationship between survival and class.
+
+
+
+**3. Is there a relationship between survival and marital status for females?** 
+
+
+Here we classified the title with 'Mrs', 'Madame' as females who are married and the title with 'Miss' 'Ms', or 'Ms'as females who are not married. There are some females with other titles but we have ignored them in the new data set because it is difficult to tell whether they are married by looking at their titles.
+
+
+```{r}
+titanic_14<- within(titanic_1,{
+  Marital='Married'
+Marital[Title %in% c('Mrs','Madame')]='Married'
+Marital[Title %in% c('Miss', 'Ms','Ms')]='Unmarried'
+})
+```
+```{r}
+titanic_14$Marital = factor(titanic_14$Marital)
+```
+
+
+```{r}
+summary(titanic_14)
+```
+
+```{r}
+titanic_14 <- filter(titanic_14, Gender=="Female")
+```
+```{r}
+summary(titanic_14)
+```
+
+```{r}
+##Omitting NA's from the data set
+
+titanic_14<- na.omit(titanic_14)
+```
+
+```{r}
+summary(titanic_14)
+```
+
+
+```{r}
+ggplot(titanic_14, aes(x = Survived, fill=Marital)) +geom_bar(position = position_dodge()) +geom_text(stat='count', aes(label=stat(count)), position = position_dodge(width=1), vjust=-0.2)+theme_classic()+labs(title="Bar Chart of survival by female Marital status")
+```
+```{r}
+##In terms of percentage
+
+titanic_14 <- titanic_14 %>%group_by(Survived, Marital) %>% dplyr::summarize(count = n()) %>%mutate(Percent=count/sum(count))
+
+
+ggplot(titanic_14, aes(x= Survived, y=Percent*100, fill = Marital)) +geom_bar(stat="identity") +  labs(title="Bar chart of survival by female Marital status", y="Percent")
+  
+```
+
+From the above diagrams, we can see that 150 married female passengers and 149 unmarried female passengers survived. 51 married female passengers and 99 unmarried female passengers died.This shows that there is very weak relationship between survival and female marital status. 
+
+
+**What about males? If there isn't enough data to answer a question, state so and explain.**
+
+I think there isn't enough data to answer the question for male. There are 21 titles for male and it's not possible to infer whether they are married by looking at their titles because none of them are used to infer their marital status. Even by making some assumptions I think it's not enough to answer the question.
+  
+
